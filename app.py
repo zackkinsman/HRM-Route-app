@@ -38,7 +38,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(64), nullable=False)
-
+    is_admin = db.Column(db.Boolean, default=False)  # Add this line
 class Bin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lat = db.Column(db.Float, nullable=False)
@@ -69,6 +69,12 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["5 per minute"])
 def home():
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     return render_template("map.html", google_maps_api_key=google_maps_api_key)
+
+@app.route("/completed_map")
+@login_required
+def completed_map():
+    google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    return render_template("completed_map.html", google_maps_api_key=google_maps_api_key)
 
 @app.route("/add_bin", methods=["POST"])
 @login_required
@@ -104,7 +110,12 @@ def add_bin():
 @app.route("/get_bins")
 @login_required
 def get_bins():
-    bins = Bin.query.all()
+    route = request.args.get("route")
+    if route:
+        bins = Bin.query.filter_by(route=route).all()
+    else:
+        bins = Bin.query.all()
+
     bin_list = [
         {
             "id": b.id,
@@ -112,6 +123,7 @@ def get_bins():
             "lng": b.lng,
             "note": b.note,
             "image": f"/uploads/{b.image_filename}" if b.image_filename else "",
+            "route": b.route
         }
         for b in bins
     ]
@@ -151,6 +163,10 @@ def edit_bin(bin_id):
         if new_note is not None:
             bin_entry.note = new_note
 
+        new_route = request.form.get("route")
+        if new_route is not None:
+            bin_entry.route = new_route
+
         image = request.files.get("image")
         if image and allowed_file(image.filename):
             # Remove old image if exists
@@ -179,11 +195,27 @@ def login():
 
         if user:
             login_user(user)
-            return redirect(url_for("home"))
+            if user.is_admin:
+                return redirect(url_for("home"))
+            else:
+                return redirect(url_for("completed_map"))
         else:
             flash("Invalid credentials. Try again.")
 
     return render_template("login.html")
+
+@app.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password_hash = hashlib.sha256(request.form["password"].encode()).hexdigest()
+        new_user = User(username=username, password_hash=password_hash, is_admin=False)
+        db.session.add(new_user)
+        db.session.commit()
+        flash("Registration successful. Please log in.")
+        return redirect(url_for("login"))
+    return render_template("register.html")
 
 @app.route("/logout")
 @login_required

@@ -10,7 +10,9 @@
 <body>
     <h2>Garbage Bin Map</h2>
     <a href="{{ url_for('logout') }}">Logout</a>
-    
+
+    <div id="map"></div>
+
     <div>
         <label for="routeSelect">Select Route:</label>
         <select id="routeSelect">
@@ -26,8 +28,6 @@
         </select>
         <button onclick="refreshBins()">Filter</button>
     </div>
-
-    <div id="map"></div>
 
     <form id="binForm">
         <label for="note">Note:</label>
@@ -61,15 +61,16 @@
                         animation: google.maps.Animation.DROP
                     });
 
-                    let infowindow = new google.maps.InfoWindow({
-                        content: `<div>
-                                    <label for="note">Note:</label>
-                                    <input type="text" id="tempNote">
-                                    <input type="file" id="tempImage">
-                                    <button onclick="saveTempBin(${selectedLat}, ${selectedLng}, tempMarker)">Save</button>
-                                  </div>`
-                    });
-                    infowindow.open(map, tempMarker);
+                    // Remove infowindow creation
+                    // let infowindow = new google.maps.InfoWindow({
+                    //     content: `<div>
+                    //                 <label for="note">Note:</label>
+                    //                 <input type="text" id="tempNote">
+                    //                 <input type="file" id="tempImage">
+                    //                 <button onclick="saveTempBin(${selectedLat}, ${selectedLng}, tempMarker)">Save</button>
+                    //               </div>`
+                    // });
+                    // infowindow.open(map, tempMarker);
                 }
             });
 
@@ -121,6 +122,25 @@
                     alert(data.message);
                     refreshBins();
                     marker.setMap(null);
+
+                    let newMarker = new google.maps.Marker({
+                        position: { lat: lat, lng: lng },
+                        map: map
+                    });
+
+                    let infowindow = new google.maps.InfoWindow({
+                        content: `<b>${note}</b><br>
+                                  <b>Route:</b> ${route}<br>
+                                  ${image ? `<img src="${URL.createObjectURL(image)}" width="100"><br>` : ""}
+                                  <button onclick="deleteBin(${data.id})">Delete</button>
+                                  <button onclick="editBin(${data.id}, '${note}')">Edit</button>`
+                    });
+
+                    newMarker.addListener('click', function() {
+                        infowindow.open(map, newMarker);
+                    });
+
+                    infowindow.open(map, newMarker);
                 });
         }
 
@@ -146,6 +166,7 @@
 
                         let infowindow = new google.maps.InfoWindow({
                             content: `<b>${bin.note}</b><br>
+                                      <b>Route:</b> ${bin.route}<br>
                                       ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}
                                       <button onclick="deleteBin(${bin.id})">Delete</button>
                                       <button onclick="editBin(${bin.id}, '${bin.note}')">Edit</button>`
@@ -162,14 +183,14 @@
 
         function deleteBin(binId) {
             if (!binId) return;
-        
+
             if (!confirm("Are you sure you want to delete this bin?")) return;
-        
+
             fetch(`/delete_bin/${binId}`, { method: "DELETE" })
                 .then(response => response.json())
                 .then(data => {
                     alert(data.message);
-        
+
                     // Remove only the deleted bin marker from the map
                     if (markers[binId]) {
                         markers[binId].setMap(null);
@@ -178,7 +199,6 @@
                 })
                 .catch(error => console.error("Error deleting bin:", error));
         }
-        
 
         function editBin(binId, oldNote) {
             let newNote = prompt("Enter new note:", oldNote);
