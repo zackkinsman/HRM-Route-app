@@ -8,3 +8,4 @@ uploads/
 
 # Ignore env file
 .env
+password.py
