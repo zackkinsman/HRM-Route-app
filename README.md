@@ -1,9 +1,12 @@
-A flask app that was meant to streamline the onboarding process for new HRM employees working in the EMA division. 
-I was unable to finish this as I didn't have all of the bin locations availible.
+# Flask App for HRM EMA Division Onboarding
 
-Features included:
-  placing pins and saving the pins to specific routes.
-  Adding pictures of the bins for reference
-  Brief discription of bin
-  Selection of route
-  Routing using google map routing api
+A Flask app designed to streamline the onboarding process for new HRM employees working in the EMA division. The project was not completed due to the lack of available bin location data.
+
+## Features
+
+- **Pin Placement**: Allow users to place pins on a map and save them to specific routes.
+- **Bin Reference Images**: Upload and attach pictures of bins for reference.
+- **Brief Descriptions**: Add short descriptions to each bin location.
+- **Route Selection**: Choose from predefined routes.
+- **Google Maps Routing API**: Utilize Google Maps Routing API for optimized navigation.
+
