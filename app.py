@@ -9,7 +9,6 @@ import os
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
 
-
 # Load environment variables
 load_dotenv()
 
@@ -22,7 +21,6 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 db = SQLAlchemy(app)
 
 migrate = Migrate(app, db)
-
 
 # Ensure upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -54,7 +52,8 @@ with app.app_context():
 # Flask-Login setup
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "login"
+# Remove the login view redirection
+# login_manager.login_view = "login"
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -65,13 +64,13 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["5 per minute"])
 
 # Routes
 @app.route("/")
-@login_required
+@limiter.limit("10000 per month")
 def home():
-    google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
-    return render_template("map.html", google_maps_api_key=google_maps_api_key)
+    # Change the landing page to the completed map page
+    return redirect(url_for("completed_map"))
 
 @app.route("/completed_map")
-@login_required
+@limiter.limit("10000 per month")
 def completed_map():
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     return render_template("completed_map.html", google_maps_api_key=google_maps_api_key)
@@ -106,9 +105,8 @@ def add_bin():
         print(f"Error saving bin: {e}")
         return jsonify({"message": "Error saving bin"}), 500
 
-
 @app.route("/get_bins")
-@login_required
+@limiter.limit("10000 per month")
 def get_bins():
     route = request.args.get("route")
     if route:
@@ -147,7 +145,7 @@ def delete_bin(bin_id):
     return jsonify({"message": "Bin deleted successfully"})
 
 @app.route("/uploads/<filename>")
-@login_required
+@limiter.limit("10000 per month")
 def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
@@ -188,34 +186,28 @@ def edit_bin(bin_id):
 @app.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def login():
+    # Ensure the login page is accessible to anyone visiting
     if request.method == "POST":
         username = request.form["username"]
         password = hashlib.sha256(request.form["password"].encode()).hexdigest()
+        
+        # Use parameterized query to prevent SQL injection
         user = User.query.filter_by(username=username, password_hash=password).first()
 
         if user:
             login_user(user)
-            if user.is_admin:
-                return redirect(url_for("home"))
-            else:
-                return redirect(url_for("completed_map"))
+            return redirect(url_for("map"))  # Redirect to map.html after login
         else:
             flash("Invalid credentials. Try again.")
 
     return render_template("login.html")
 
-@app.route("/register", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
-def register():
-    if request.method == "POST":
-        username = request.form["username"]
-        password_hash = hashlib.sha256(request.form["password"].encode()).hexdigest()
-        new_user = User(username=username, password_hash=password_hash, is_admin=False)
-        db.session.add(new_user)
-        db.session.commit()
-        flash("Registration successful. Please log in.")
-        return redirect(url_for("login"))
-    return render_template("register.html")
+@app.route("/map")
+@login_required
+@limiter.limit("10000 per month")
+def map():
+    google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    return render_template("map.html", google_maps_api_key=google_maps_api_key)
 
 @app.route("/logout")
 @login_required
@@ -224,4 +216,4 @@ def logout():
     return redirect(url_for("login"))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=False)
