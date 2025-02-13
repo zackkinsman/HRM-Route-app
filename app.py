@@ -9,6 +9,7 @@ import os
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
 
+
 # Load environment variables
 load_dotenv()
 
