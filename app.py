@@ -8,8 +8,6 @@ import hashlib
 import os
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
-from waitress import serve
-
 
 # Load environment variables
 load_dotenv()
@@ -218,4 +216,4 @@ def logout():
     return redirect(url_for("login"))
 
 if __name__ == "__main__":
-    serve(app, host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000)
