@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/e1b61c2b-b70f-44a0-9e36-e1a869f862ae/resourceGroups/appsvc_linux_centralus/providers/Microsoft.Web/sites/HRM-EMA-Routes",
+    "appService.deploySubpath": "."
+}
