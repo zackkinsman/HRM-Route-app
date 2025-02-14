@@ -1,7 +1,6 @@
 
 # Ignore folders
 routeapp/
-migrations/
 __pycache__/
 instance/
 uploads/

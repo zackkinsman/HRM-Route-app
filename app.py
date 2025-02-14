@@ -79,7 +79,6 @@ def home():
     return redirect(url_for("completed_map"))
 
 @app.route("/completed_map")
-@limiter.limit("10000 per month")
 def completed_map():
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     return render_template("completed_map.html", google_maps_api_key=google_maps_api_key)
