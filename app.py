@@ -68,7 +68,8 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Flask-Limiter for brute-force protection
-limiter = Limiter(get_remote_address, app=app, default_limits=["5 per minute"])
+limiter = Limiter(key_func=get_remote_address)
+limiter.init_app(app)
 
 # Routes
 @app.route("/")
