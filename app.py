@@ -144,13 +144,20 @@ def delete_bin(bin_id):
 def login():
     if request.method == "POST":
         username = request.form["username"]
-        password = hashlib.sha256(request.form["password"].encode()).hexdigest()
-        user = User.query.filter_by(username=username, password_hash=password).first()
+        password = request.form["password"]
+
+        # Hash the entered password
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+        # Query the user
+        user = User.query.filter_by(username=username, password_hash=password_hash).first()
+
         if user:
             login_user(user)
             return redirect(url_for("map"))
         else:
             flash("Invalid credentials. Try again.")
+    
     return render_template("login.html")
 
 @app.route("/map")
