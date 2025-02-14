@@ -9,6 +9,7 @@ import os
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
 import secrets
+from flask_migrate import upgrade
 
 # Load environment variables
 load_dotenv()
@@ -168,3 +169,11 @@ def logout():
 
 if __name__ != "__main__":
     gunicorn_app = app
+
+
+with app.app_context():
+    try:
+        upgrade()  # Apply migrations automatically on startup
+        print("Database migrations applied successfully!")
+    except Exception as e:
+        print(f"Error applying migrations: {e}")
