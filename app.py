@@ -115,12 +115,13 @@ def add_bin():
 def get_bins():
     route = request.args.get("route")
     bins = Bin.query.filter_by(route=route).all() if route else Bin.query.all()
+    uploads_folder = app.config['UPLOAD_FOLDER']
     bin_list = [{
         "id": b.id,
         "lat": b.lat,
         "lng": b.lng,
         "note": b.note,
-        "image": f"/uploads/{b.image_filename}" if b.image_filename else "",
+        "image": f"{uploads_folder}/{b.image_filename}" if b.image_filename else "",
         "route": b.route
     } for b in bins]
     return jsonify(bin_list)
