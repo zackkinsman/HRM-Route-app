@@ -133,6 +133,49 @@ def get_bins():
     return jsonify(bin_list)
 
 
+@app.route("/optimize_route")
+@limiter.limit("10000 per month")
+def optimize_route():
+    try:
+        route = request.args.get("route")
+        bins = Bin.query.filter_by(route=route).all() if route else Bin.query.all()
+
+        if not bins:
+            return jsonify({"message": "No bins found for the selected route."}), 404
+
+        # Get user's current location from the request
+        user_lat = float(request.args.get("user_lat"))
+        user_lng = float(request.args.get("user_lng"))
+
+        user_location = {"lat": user_lat, "lng": user_lng}
+        bin_locations = [{"lat": b.lat, "lng": b.lng} for b in bins]
+
+        # Find the closest bin to user's location
+        closest_bin = min(bin_locations, key=lambda b: get_distance(user_location, b))
+
+        # Arrange waypoints (excluding closest bin which is the first stop)
+        waypoints = [b for b in bin_locations if b != closest_bin]
+
+        # Return optimized route data
+        return jsonify({
+            "start": user_location,
+            "first_stop": closest_bin,
+            "waypoints": waypoints
+        })
+    except Exception as e:
+        print(f"Error optimizing route: {e}")
+        return jsonify({"message": "Error optimizing route"}), 500
+
+def get_distance(p1, p2):
+    from math import radians, sin, cos, sqrt, atan2
+    R = 6371  # Radius of Earth in km
+    dlat = radians(p2["lat"] - p1["lat"])
+    dlon = radians(p2["lng"] - p1["lng"])
+    a = sin(dlat/2) ** 2 + cos(radians(p1["lat"])) * cos(radians(p2["lat"])) * sin(dlon/2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
+    return R * c
+
+
 @app.route("/delete_bin/<int:bin_id>", methods=["DELETE"])
 @login_required
 def delete_bin(bin_id):
