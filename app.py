@@ -160,6 +160,40 @@ def login():
     
     return render_template("login.html")
 
+
+
+@app.route("/edit_bin/<int:bin_id>", methods=["POST"])
+@login_required
+def edit_bin(bin_id):
+    try:
+        bin_entry = Bin.query.get(bin_id)
+        if not bin_entry:
+            return jsonify({"message": "Bin not found"}), 404
+
+        note = request.form.get("note")
+        if note:
+            bin_entry.note = note
+
+        image = request.files.get("image")
+        if image and allowed_file(image.filename):
+            # Remove old image if exists
+            if bin_entry.image_filename:
+                old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], bin_entry.image_filename)
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+            
+            # Save new image
+            image_filename = secure_filename(image.filename)
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+            bin_entry.image_filename = image_filename
+
+        db.session.commit()
+        return jsonify({"message": "Bin updated successfully!"})
+    except Exception as e:
+        print(f"Error updating bin: {e}")
+        return jsonify({"message": "Error updating bin"}), 500
+
+
 @app.route("/map")
 @login_required
 @limiter.limit("10000 per month")

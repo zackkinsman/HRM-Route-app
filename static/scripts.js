@@ -165,15 +165,15 @@ function editBin(binId, oldNote) {
         imageInput.onchange = function() {
             if (imageInput.files.length > 0) {
                 formData.append("image", imageInput.files[0]);
-            }
 
-            fetch(`/edit_bin/${binId}`, { method: "POST", body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    refreshBins();
-                })
-                .catch(error => console.error("Error updating bin:", error));
+                fetch(`/edit_bin/${binId}`, { method: "POST", body: formData })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        refreshBins();
+                    })
+                    .catch(error => console.error("Error updating bin:", error));
+            }
         };
 
         imageInput.click();
