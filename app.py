@@ -40,6 +40,8 @@ migrate.init_app(app, db)
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
+
+
 # Allowed image types
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
@@ -78,6 +80,11 @@ limiter.init_app(app)
 def home():
     return redirect(url_for("completed_map"))
 
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 @app.route("/completed_map")
 def completed_map():
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
@@ -115,16 +122,16 @@ def add_bin():
 def get_bins():
     route = request.args.get("route")
     bins = Bin.query.filter_by(route=route).all() if route else Bin.query.all()
-    uploads_folder = app.config['UPLOAD_FOLDER']
     bin_list = [{
         "id": b.id,
         "lat": b.lat,
         "lng": b.lng,
         "note": b.note,
-        "image": f"{uploads_folder}/{b.image_filename}" if b.image_filename else "",
+        "image": f"/uploads/{b.image_filename}" if b.image_filename else "",
         "route": b.route
     } for b in bins]
     return jsonify(bin_list)
+
 
 @app.route("/delete_bin/<int:bin_id>", methods=["DELETE"])
 @login_required

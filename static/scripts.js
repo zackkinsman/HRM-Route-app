@@ -117,7 +117,7 @@ function refreshBins() {
                 let infowindow = new google.maps.InfoWindow({
                     content: `<b>${bin.note}</b><br>
                               <b>Route:</b> ${bin.route}<br>
-                              ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}
+                              ${bin.image ? `<img src="https://hrm-route-app.onrender.com${bin.image}" width="100"><br>` : ""}
                               <button onclick="deleteBin(${bin.id})">Delete</button>
                               <button onclick="editBin(${bin.id}, '${bin.note}')">Edit</button>`
                 });
