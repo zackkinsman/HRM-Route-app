@@ -126,26 +126,29 @@
                 return;
             }
         
+            // ✅ Ensure waypoints are exact bin locations
+            let exactWaypoints = waypoints.map(wp => ({
+                location: new google.maps.LatLng(wp.location.lat(), wp.location.lng()),
+                stopover: true
+            }));
+        
             let request = {
                 origin: new google.maps.LatLng(start.lat, start.lng),
                 destination: new google.maps.LatLng(firstStop.lat, firstStop.lng),
-                waypoints: waypoints,  // ✅ Only bin markers are used as waypoints
+                waypoints: exactWaypoints, // ✅ No automatic road-based waypoints
                 optimizeWaypoints: true,
-                travelMode: google.maps.TravelMode.DRIVING,
-                provideRouteAlternatives: false, // ✅ Prevents Google from adding unnecessary route markers
-                avoidHighways: false, // Keep routing normal
-                avoidTolls: false
+                travelMode: google.maps.TravelMode.DRIVING
             };
         
             directionsService.route(request, function(result, status) {
                 if (status === google.maps.DirectionsStatus.OK) {
                     directionsRenderer.setDirections(result);
         
-                    // ✅ Remove any automatically placed markers
+                    // ✅ Remove any additional road markers that Google may add
                     let routeLegs = result.routes[0].legs;
                     routeLegs.forEach(leg => {
                         if (leg.via_waypoint) {
-                            leg.via_waypoint.setMap(null); // Remove auto-added road markers
+                            leg.via_waypoint.setMap(null);
                         }
                     });
         
@@ -153,7 +156,7 @@
                     console.error("Directions request failed due to " + status);
                 }
             });
-        }  
+        }          
     </script>
 </body>
 </html>
