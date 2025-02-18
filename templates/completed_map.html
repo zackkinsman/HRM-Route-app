@@ -29,87 +29,91 @@
         let directionsService;
         let directionsRenderer;
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 44.66534095035757, lng: -63.62137517790954 },
-                zoom: 15
-            });
-
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
-            refreshCompletedBins();
-        }
-
-        function refreshCompletedBins() {
-            let route = document.getElementById("routeSelect").value;
-            let url = route ? `/get_bins?route=${route}` : "/get_bins";
-        
+        function promptForLocation() {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     let userLocation = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-        
-                    fetch(url)
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log("Bins:", data);
-                            markers.forEach(marker => marker.setMap(null)); // Clear old markers
-                            markers = [];
-        
-                            let waypoints = [];
-                            let closestBin = null;
-                            let minDistance = Infinity;
-        
-                            data.forEach(bin => {
-                                let binLocation = new google.maps.LatLng(bin.lat, bin.lng);
-        
-                                let marker = new google.maps.Marker({
-                                    position: binLocation,
-                                    map: map
-                                });
-        
-                                let infowindow = new google.maps.InfoWindow({
-                                    content: `<b>${bin.note}</b><br>
-                                              ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
-                                });
-        
-                                marker.addListener('click', function() {
-                                    infowindow.open(map, marker);
-                                });
-        
-                                markers.push(marker);
-        
-                                let distance = getDistance(userLocation, { lat: bin.lat, lng: bin.lng });
-        
-                                if (distance < minDistance) {
-                                    minDistance = distance;
-                                    closestBin = bin;
-                                }
-        
-                                waypoints.push({
-                                    location: binLocation,
-                                    stopover: true
-                                });
-                            });
-        
-                            if (data.length > 0) {
-                                optimizeRoute(userLocation, waypoints, closestBin);
-                            }
-                        })
-                        .catch(error => console.error("Error fetching bins:", error));
+                    refreshCompletedBins(userLocation);
                 },
                 (error) => {
-                    console.error("Error getting user location:", error);
-                    alert("Location access denied. Route optimization may not work correctly.");
+                    alert("Location access denied. Using a default location.");
+                    let defaultLocation = { lat: 44.66541324819608, lng: -63.62142899829352 };
+                    refreshCompletedBins(defaultLocation);
                 }
             );
+        }        
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 44.66541324819608, lng: -63.62142899829352 }, // Default Center
+                zoom: 15
+            });
+        
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+        
+            promptForLocation();
+        }        
+        
+        function refreshCompletedBins(userLocation) {
+            let route = document.getElementById("routeSelect").value;
+            let url = route ? `/get_bins?route=${route}` : "/get_bins";
+        
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Bins:", data);
+                    markers.forEach(marker => marker.setMap(null)); // Clear old markers
+                    markers = [];
+        
+                    let waypoints = [];
+                    let closestBin = null;
+                    let minDistance = Infinity;
+        
+                    data.forEach(bin => {
+                        let binLocation = new google.maps.LatLng(bin.lat, bin.lng);
+        
+                        let marker = new google.maps.Marker({
+                            position: binLocation,
+                            map: map
+                        });
+        
+                        let infowindow = new google.maps.InfoWindow({
+                            content: `<b>${bin.note}</b><br>
+                                      ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
+                        });
+        
+                        marker.addListener('click', function() {
+                            infowindow.open(map, marker);
+                        });
+        
+                        markers.push(marker);
+        
+                        let distance = getDistance(userLocation, { lat: bin.lat, lng: bin.lng });
+        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestBin = bin;
+                        }
+        
+                        waypoints.push({
+                            location: binLocation,
+                            stopover: true
+                        });
+                    });
+        
+                    if (data.length > 0) {
+                        optimizeRoute(userLocation, waypoints, closestBin);
+                    }
+                })
+                .catch(error => console.error("Error fetching bins:", error));
         }
         
-
         function getDistance(p1, p2) {
-            let R = 6371;
+            let R = 6371; // Earth radius in km
             let dLat = (p2.lat - p1.lat) * Math.PI / 180;
             let dLng = (p2.lng - p1.lng) * Math.PI / 180;
             let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -118,7 +122,7 @@
             let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c;
         }
-
+ 
         function optimizeRoute(start, waypoints, firstStop) {
             if (!firstStop) {
                 console.error("No valid first stop for the route.");
@@ -138,16 +142,13 @@
         
             directionsService.route(request, function(result, status) {
                 if (status === google.maps.DirectionsStatus.OK) {
-                    // ✅ Stop Google from placing extra markers
                     directionsRenderer.setOptions({ suppressMarkers: true });
-        
-                    // ✅ Render the optimized route without extra markers
                     directionsRenderer.setDirections(result);
                 } else {
                     console.error("Directions request failed due to " + status);
                 }
             });
-        }                  
+        }                          
     </script>
 </body>
 </html>
