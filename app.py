@@ -187,7 +187,7 @@ def optimize_route():
 
 def get_distance(p1, p2):
     from math import radians, sin, cos, sqrt, atan2
-    R = 6371  # Radius of Earth in km
+    R = 6371 
     dlat = radians(p2["lat"] - p1["lat"])
     dlon = radians(p2["lng"] - p1["lng"])
     a = sin(dlat/2) ** 2 + cos(radians(p1["lat"])) * cos(radians(p2["lat"])) * sin(dlon/2) ** 2
@@ -246,13 +246,11 @@ def edit_bin(bin_id):
 
         image = request.files.get("image")
         if image and allowed_file(image.filename):
-            # Remove old image if exists
             if bin_entry.image_filename:
                 old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], bin_entry.image_filename)
                 if os.path.exists(old_image_path):
                     os.remove(old_image_path)
             
-            # Save new image
             image_filename = secure_filename(image.filename)
             image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
             bin_entry.image_filename = image_filename
@@ -278,7 +276,6 @@ def logout():
     return redirect(url_for("login"))
 
 
-# Ensure upload folder exists on startup
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
@@ -289,7 +286,7 @@ if __name__ != "__main__":
 
 with app.app_context():
     try:
-        upgrade()  # Apply migrations automatically on startup
+        upgrade()
         print("Database migrations applied successfully!")
     except Exception as e:
         print(f"Error applying migrations: {e}")

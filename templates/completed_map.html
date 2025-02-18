@@ -126,7 +126,6 @@
                 return;
             }
         
-            // ✅ Ensure waypoints are exact bin locations
             let exactWaypoints = waypoints.map(wp => ({
                 location: new google.maps.LatLng(wp.location.lat(), wp.location.lng()),
                 stopover: true
@@ -135,7 +134,7 @@
             let request = {
                 origin: new google.maps.LatLng(start.lat, start.lng),
                 destination: new google.maps.LatLng(firstStop.lat, firstStop.lng),
-                waypoints: exactWaypoints, // ✅ No automatic road-based waypoints
+                waypoints: exactWaypoints,
                 optimizeWaypoints: true,
                 travelMode: google.maps.TravelMode.DRIVING
             };
@@ -144,19 +143,16 @@
                 if (status === google.maps.DirectionsStatus.OK) {
                     directionsRenderer.setDirections(result);
         
-                    // ✅ Remove any additional road markers that Google may add
-                    let routeLegs = result.routes[0].legs;
-                    routeLegs.forEach(leg => {
-                        if (leg.via_waypoint) {
-                            leg.via_waypoint.setMap(null);
-                        }
-                    });
-        
+                    setTimeout(() => {
+                        document.querySelectorAll("img[src*='googleapis.com/mapfiles/']").forEach(img => {
+                            img.style.display = "none"; // Hide auto-added markers
+                        });
+                    }, 1000);
                 } else {
                     console.error("Directions request failed due to " + status);
                 }
             });
-        }          
+        }                  
     </script>
 </body>
 </html>
