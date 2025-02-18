@@ -1,33 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Completed Routes Map</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Maps API -->
     <script async defer 
-    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap"></script>    
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap">
+    </script>
+
     <style>
+        /* Ensure the map takes up the right space */
         #map { height: 500px; width: 100%; }
+
+        @media (max-width: 768px) {
+            #map { height: 400px; } /* Smaller height on mobile */
+        }
+
+        /* Add some spacing */
+        .container { margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h2>Completed Routes Map</h2>
-    <select id="routeSelect" onchange="refreshCompletedBins()">
-        <option value="">All Routes</option>
-        <option value="ema_halifax">EMA Halifax</option>
-        <option value="ema_dartmouth">EMA Dartmouth</option>
-        <option value="halifax_1">Halifax 1</option>
-        <option value="halifax_2">Halifax 2</option>
-        <option value="halifax_3">Halifax 3</option>
-        <option value="halifax_4">Halifax 4</option>
-        <option value="dartmouth_1">Dartmouth 1</option>
-        <option value="dartmouth_2">Dartmouth 2</option>
-    </select>
-    <div id="map"></div>
+
+    <div class="container-fluid">
+        <h2 class="text-center mt-3">Completed Routes Map</h2>
+
+        <div class="row mb-3">
+            <div class="col-12 col-md-6 mx-auto">
+                <label for="routeSelect" class="form-label">Select Route:</label>
+                <select id="routeSelect" class="form-select" onchange="promptForLocation()">
+                    <option value="" selected disabled>Select a Route</option>
+                    <option value="ema_halifax">EMA Halifax</option>
+                    <option value="ema_dartmouth">EMA Dartmouth</option>
+                    <option value="halifax_1">Halifax 1</option>
+                    <option value="halifax_2">Halifax 2</option>
+                    <option value="halifax_3">Halifax 3</option>
+                    <option value="halifax_4">Halifax 4</option>
+                    <option value="dartmouth_1">Dartmouth 1</option>
+                    <option value="dartmouth_2">Dartmouth 2</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        let map;
-        let markers = [];
-        let directionsService;
-        let directionsRenderer;
+        let map, directionsService, directionsRenderer, markers = [];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 44.66541324819608, lng: -63.62142899829352 },
+                zoom: 15
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+
+            promptForLocation();
+        }
 
         function promptForLocation() {
             navigator.geolocation.getCurrentPosition(
@@ -44,76 +87,64 @@
                     refreshCompletedBins(defaultLocation);
                 }
             );
-        }        
+        }
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 44.66541324819608, lng: -63.62142899829352 }, // Default Center
-                zoom: 15
-            });
-        
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
-        
-            promptForLocation();
-        }        
-        
         function refreshCompletedBins(userLocation) {
             let route = document.getElementById("routeSelect").value;
             let url = route ? `/get_bins?route=${route}` : "/get_bins";
-        
+
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     console.log("Bins:", data);
-                    markers.forEach(marker => marker.setMap(null)); // Clear old markers
+                    markers.forEach(marker => marker.setMap(null));
                     markers = [];
-        
+
                     let waypoints = [];
                     let closestBin = null;
                     let minDistance = Infinity;
-        
+
                     data.forEach(bin => {
                         let binLocation = new google.maps.LatLng(bin.lat, bin.lng);
-        
+
                         let marker = new google.maps.Marker({
                             position: binLocation,
                             map: map
                         });
-        
+
                         let infowindow = new google.maps.InfoWindow({
                             content: `<b>${bin.note}</b><br>
                                       ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
                         });
-        
+
                         marker.addListener('click', function() {
                             infowindow.open(map, marker);
                         });
-        
+
                         markers.push(marker);
-        
+
                         let distance = getDistance(userLocation, { lat: bin.lat, lng: bin.lng });
-        
+
                         if (distance < minDistance) {
                             minDistance = distance;
                             closestBin = bin;
                         }
-        
+
                         waypoints.push({
                             location: binLocation,
                             stopover: true
                         });
                     });
-        
+
                     if (data.length > 0) {
                         optimizeRoute(userLocation, waypoints, closestBin);
                     }
                 })
                 .catch(error => console.error("Error fetching bins:", error));
         }
-        
+
         function getDistance(p1, p2) {
-            let R = 6371; // Earth radius in km
+            let R = 6371;
             let dLat = (p2.lat - p1.lat) * Math.PI / 180;
             let dLng = (p2.lng - p1.lng) * Math.PI / 180;
             let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -122,13 +153,13 @@
             let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c;
         }
- 
+
         function optimizeRoute(start, waypoints, firstStop) {
             if (!firstStop) {
                 console.error("No valid first stop for the route.");
                 return;
             }
-        
+
             let request = {
                 origin: new google.maps.LatLng(start.lat, start.lng),
                 destination: new google.maps.LatLng(firstStop.lat, firstStop.lng),
@@ -139,7 +170,7 @@
                 optimizeWaypoints: true,
                 travelMode: google.maps.TravelMode.DRIVING
             };
-        
+
             directionsService.route(request, function(result, status) {
                 if (status === google.maps.DirectionsStatus.OK) {
                     directionsRenderer.setOptions({ suppressMarkers: true });
@@ -148,7 +179,8 @@
                     console.error("Directions request failed due to " + status);
                 }
             });
-        }                          
+        }
     </script>
+
 </body>
 </html>
