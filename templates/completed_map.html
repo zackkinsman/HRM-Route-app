@@ -33,7 +33,7 @@
         <div class="row mb-3">
             <div class="col-12 col-md-6 mx-auto">
                 <label for="routeSelect" class="form-label">Select Route:</label>
-                <select id="routeSelect" class="form-select" onchange="promptForLocation()">
+                <select id="routeSelect" class="form-select" onchange="refreshCompletedBins()">
                     <option value="" selected disabled>Select a Route</option>
                     <option value="ema_halifax">EMA Halifax</option>
                     <option value="ema_dartmouth">EMA Dartmouth</option>
@@ -59,83 +59,86 @@
 
     <script>
         let map, directionsService, directionsRenderer, markers = [];
+        let userLocation = null; // Store user's location globally
 
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat: 44.66541324819608, lng: -63.62142899829352 },
                 zoom: 15
             });
-
+        
             directionsService = new google.maps.DirectionsService();
             directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
-
-            promptForLocation();
+        
+            promptForLocation(); // Ask for location on page load
         }
 
         function promptForLocation() {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    let userLocation = {
+                    userLocation = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-                    refreshCompletedBins(userLocation);
+                    refreshCompletedBins(); // Now refresh bins after getting location
                 },
                 (error) => {
                     alert("Location access denied. Using a default location.");
-                    let defaultLocation = { lat: 44.66541324819608, lng: -63.62142899829352 };
-                    refreshCompletedBins(defaultLocation);
+                    userLocation = { lat: 44.66541324819608, lng: -63.62142899829352 };
+                    refreshCompletedBins();
                 }
             );
         }
 
-        function refreshCompletedBins(userLocation) {
+        function refreshCompletedBins() {
+            if (!userLocation) return; // Ensure we have a location before proceeding
+        
             let route = document.getElementById("routeSelect").value;
             let url = route ? `/get_bins?route=${route}` : "/get_bins";
-
+        
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     console.log("Bins:", data);
                     markers.forEach(marker => marker.setMap(null));
                     markers = [];
-
+        
                     let waypoints = [];
                     let closestBin = null;
                     let minDistance = Infinity;
-
+        
                     data.forEach(bin => {
                         let binLocation = new google.maps.LatLng(bin.lat, bin.lng);
-
+        
                         let marker = new google.maps.Marker({
                             position: binLocation,
                             map: map
                         });
-
+        
                         let infowindow = new google.maps.InfoWindow({
                             content: `<b>${bin.note}</b><br>
                                       ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
                         });
-
+        
                         marker.addListener('click', function() {
                             infowindow.open(map, marker);
                         });
-
+        
                         markers.push(marker);
-
+        
                         let distance = getDistance(userLocation, { lat: bin.lat, lng: bin.lng });
-
+        
                         if (distance < minDistance) {
                             minDistance = distance;
                             closestBin = bin;
                         }
-
+        
                         waypoints.push({
                             location: binLocation,
                             stopover: true
                         });
                     });
-
+        
                     if (data.length > 0) {
                         optimizeRoute(userLocation, waypoints, closestBin);
                     }
