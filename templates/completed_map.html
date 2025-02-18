@@ -70,7 +70,8 @@
 
                                 let infowindow = new google.maps.InfoWindow({
                                     content: `<b>${bin.note}</b><br>
-                                              ${bin.image ? `<img src="https://hrm-route-app.onrender.com${bin.image}" width="100"><br>` : ""}`
+                                              ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
+
                                 });
 
                                 marker.addListener('click', function() {

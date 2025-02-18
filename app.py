@@ -80,15 +80,20 @@ limiter.init_app(app)
 def home():
     return redirect(url_for("completed_map"))
 
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        print(f"Error serving file: {e}")
+        return "File not found", 404
+
 
 @app.route("/completed_map")
 def completed_map():
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     return render_template("completed_map.html", google_maps_api_key=google_maps_api_key)
+
 
 @app.route("/add_bin", methods=["POST"])
 @login_required
@@ -104,10 +109,23 @@ def add_bin():
 
         image = request.files.get("image")
         image_filename = None
-        if image and allowed_file(image.filename):
-            image_filename = secure_filename(image.filename)
-            image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
 
+        if image and allowed_file(image.filename):
+            filename = secure_filename(image.filename)
+            
+            # Ensure unique filename
+            base_name, ext = os.path.splitext(filename)
+            counter = 1
+            while os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+                filename = f"{base_name}_{counter}{ext}"
+                counter += 1
+
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            image.save(image_path)
+
+            image_filename = filename
+
+        # Save bin entry
         bin_entry = Bin(lat=lat, lng=lng, note=note, image_filename=image_filename, route=route)
         db.session.add(bin_entry)
         db.session.commit()
@@ -116,6 +134,7 @@ def add_bin():
     except Exception as e:
         print(f"Error saving bin: {e}")
         return jsonify({"message": "Error saving bin"}), 500
+
 
 @app.route("/get_bins")
 @limiter.limit("10000 per month")
@@ -127,7 +146,7 @@ def get_bins():
         "lat": b.lat,
         "lng": b.lng,
         "note": b.note,
-        "image": f"/uploads/{b.image_filename}" if b.image_filename else "",
+        "image": url_for("uploaded_file", filename=b.image_filename, _external=True) if b.image_filename else "",
         "route": b.route
     } for b in bins]
     return jsonify(bin_list)
@@ -257,6 +276,12 @@ def map():
 def logout():
     logout_user()
     return redirect(url_for("login"))
+
+
+# Ensure upload folder exists on startup
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
 
 if __name__ != "__main__":
     gunicorn_app = app

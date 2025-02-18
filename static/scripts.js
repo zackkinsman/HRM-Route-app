@@ -47,51 +47,12 @@ function initMap() {
             .then(response => response.json())
             .then(data => {
                 alert(data.message);
-                refreshBins();
+                refreshBins(); // ✅ Refresh bins after adding
                 selectedLat = null;
                 selectedLng = null;
-            });
+            })
+            .catch(error => console.error("Error saving bin:", error));
     };
-}
-
-function saveTempBin(lat, lng, marker) {
-    let note = document.getElementById("tempNote").value;
-    let image = document.getElementById("tempImage").files[0];
-    let route = document.getElementById("routeSelect").value;
-
-    let formData = new FormData();
-    formData.append("lat", lat);
-    formData.append("lng", lng);
-    formData.append("note", note);
-    formData.append("image", image);
-    formData.append("route", route);
-
-    fetch("/add_bin", { method: "POST", body: formData })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-            refreshBins();
-            marker.setMap(null);
-
-            let newMarker = new google.maps.Marker({
-                position: { lat: lat, lng: lng },
-                map: map
-            });
-
-            let infowindow = new google.maps.InfoWindow({
-                content: `<b>${note}</b><br>
-                          <b>Route:</b> ${route}<br>
-                          ${image ? `<img src="${URL.createObjectURL(image)}" width="100"><br>` : ""}
-                          <button onclick="deleteBin(${data.id})">Delete</button>
-                          <button onclick="editBin(${data.id}, '${note}')">Edit</button>`
-            });
-
-            newMarker.addListener('click', function() {
-                infowindow.open(map, newMarker);
-            });
-
-            infowindow.open(map, newMarker);
-        });
 }
 
 function refreshBins() {
@@ -103,6 +64,7 @@ function refreshBins() {
         .then(data => {
             console.log("Fetched bins:", data);
 
+            // Remove old markers
             for (let id in markers) {
                 markers[id].setMap(null);
             }
@@ -117,7 +79,7 @@ function refreshBins() {
                 let infowindow = new google.maps.InfoWindow({
                     content: `<b>${bin.note}</b><br>
                               <b>Route:</b> ${bin.route}<br>
-                              ${bin.image ? `<img src="https://hrm-route-app.onrender.com${bin.image}" width="100"><br>` : ""}
+                              ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}
                               <button onclick="deleteBin(${bin.id})">Delete</button>
                               <button onclick="editBin(${bin.id}, '${bin.note}')">Edit</button>`
                 });
@@ -128,7 +90,8 @@ function refreshBins() {
 
                 markers[bin.id] = marker;
             });
-        });
+        })
+        .catch(error => console.error("Error fetching bins:", error));
 }
 
 function deleteBin(binId) {
