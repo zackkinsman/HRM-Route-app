@@ -88,7 +88,6 @@
                                     closestBin = bin;
                                 }
         
-                                // ✅ Only add actual bin markers as waypoints (NO extra auto-generated points)
                                 waypoints.push({
                                     location: binLocation,
                                     stopover: true
@@ -126,28 +125,24 @@
                 return;
             }
         
-            let exactWaypoints = waypoints.map(wp => ({
-                location: new google.maps.LatLng(wp.location.lat(), wp.location.lng()),
-                stopover: true
-            }));
-        
             let request = {
                 origin: new google.maps.LatLng(start.lat, start.lng),
                 destination: new google.maps.LatLng(firstStop.lat, firstStop.lng),
-                waypoints: exactWaypoints,
+                waypoints: waypoints.map(wp => ({
+                    location: wp.location,
+                    stopover: true
+                })),
                 optimizeWaypoints: true,
                 travelMode: google.maps.TravelMode.DRIVING
             };
         
             directionsService.route(request, function(result, status) {
                 if (status === google.maps.DirectionsStatus.OK) {
-                    directionsRenderer.setDirections(result);
+                    // ✅ Stop Google from placing extra markers
+                    directionsRenderer.setOptions({ suppressMarkers: true });
         
-                    setTimeout(() => {
-                        document.querySelectorAll("img[src*='googleapis.com/mapfiles/']").forEach(img => {
-                            img.style.display = "none"; // Hide auto-added markers
-                        });
-                    }, 1000);
+                    // ✅ Render the optimized route without extra markers
+                    directionsRenderer.setDirections(result);
                 } else {
                     console.error("Directions request failed due to " + status);
                 }
