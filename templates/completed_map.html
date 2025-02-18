@@ -8,182 +8,206 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Google Maps API -->
-    <script async defer 
+    <!-- Google Maps API (async defer) -->
+    <script async 
+        defer 
         src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap">
     </script>
 
     <style>
-        /* Ensure the map takes up the right space */
-        #map { height: 500px; width: 100%; }
-
-        @media (max-width: 768px) {
-            #map { height: 400px; } /* Smaller height on mobile */
+        #map {
+            height: 500px;
+            width: 100%;
         }
-
-        /* Add some spacing */
-        .container { margin-top: 20px; }
+        @media (max-width: 768px) {
+            #map {
+                height: 400px;
+            }
+        }
+        .container {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container-fluid">
-        <h2 class="text-center mt-3">Completed Routes Map</h2>
+<div class="container-fluid">
+    <h2 class="text-center mt-3">Completed Routes Map</h2>
 
-        <div class="row mb-3">
-            <div class="col-12 col-md-6 mx-auto">
-                <label for="routeSelect" class="form-label">Select Route:</label>
-                <select id="routeSelect" class="form-select" onchange="refreshCompletedBins()">
-                    <option value="" selected disabled>Select a Route</option>
-                    <option value="ema_halifax">EMA Halifax</option>
-                    <option value="ema_dartmouth">EMA Dartmouth</option>
-                    <option value="halifax_1">Halifax 1</option>
-                    <option value="halifax_2">Halifax 2</option>
-                    <option value="halifax_3">Halifax 3</option>
-                    <option value="halifax_4">Halifax 4</option>
-                    <option value="dartmouth_1">Dartmouth 1</option>
-                    <option value="dartmouth_2">Dartmouth 2</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div id="map"></div>
-            </div>
+    <div class="row mb-3">
+        <div class="col-12 col-md-6 mx-auto">
+            <label for="routeSelect" class="form-label">Select Route:</label>
+            <select id="routeSelect" class="form-select" onchange="refreshCompletedBins()">
+                <option value="" selected disabled>Select a Route</option>
+                <option value="ema_halifax">EMA Halifax</option>
+                <option value="ema_dartmouth">EMA Dartmouth</option>
+                <option value="halifax_1">Halifax 1</option>
+                <option value="halifax_2">Halifax 2</option>
+                <option value="halifax_3">Halifax 3</option>
+                <option value="halifax_4">Halifax 4</option>
+                <option value="dartmouth_1">Dartmouth 1</option>
+                <option value="dartmouth_2">Dartmouth 2</option>
+            </select>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="row">
+        <div class="col-12">
+            <div id="map"></div>
+        </div>
+    </div>
+</div>
 
-    <script>
-        let map, directionsService, directionsRenderer, markers = [];
-        let userLocation = null; // Store user's location globally
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 44.66541324819608, lng: -63.62142899829352 },
-                zoom: 15
-            });
-        
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
-        
-            promptForLocation(); // Ask for location on page load
-        }
+<script>
+    let map, directionsService, directionsRenderer;
+    let markers = [];
+    let userLocation = null;
 
-        function promptForLocation() {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    userLocation = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    refreshCompletedBins(); // Now refresh bins after getting location
-                },
-                (error) => {
-                    alert("Location access denied. Using a default location.");
-                    userLocation = { lat: 44.66541324819608, lng: -63.62142899829352 };
-                    refreshCompletedBins();
-                }
-            );
-        }
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: { lat: 44.66541324819608, lng: -63.62142899829352 },
+            zoom: 15
+        });
 
-        function refreshCompletedBins() {
-            if (!userLocation) return; // Ensure we have a location before proceeding
-        
-            let route = document.getElementById("routeSelect").value;
-            let url = route ? `/get_bins?route=${route}` : "/get_bins";
-        
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Bins:", data);
-                    markers.forEach(marker => marker.setMap(null));
-                    markers = [];
-        
-                    let waypoints = [];
-                    let closestBin = null;
-                    let minDistance = Infinity;
-        
-                    data.forEach(bin => {
-                        let binLocation = new google.maps.LatLng(bin.lat, bin.lng);
-        
-                        let marker = new google.maps.Marker({
-                            position: binLocation,
-                            map: map
-                        });
-        
-                        let infowindow = new google.maps.InfoWindow({
-                            content: `<b>${bin.note}</b><br>
-                                      ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
-                        });
-        
-                        marker.addListener('click', function() {
-                            infowindow.open(map, marker);
-                        });
-        
-                        markers.push(marker);
-        
-                        let distance = getDistance(userLocation, { lat: bin.lat, lng: bin.lng });
-        
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestBin = bin;
-                        }
-        
-                        waypoints.push({
-                            location: binLocation,
-                            stopover: true
-                        });
-                    });
-        
-                    if (data.length > 0) {
-                        optimizeRoute(userLocation, waypoints, closestBin);
-                    }
-                })
-                .catch(error => console.error("Error fetching bins:", error));
-        }
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
 
-        function getDistance(p1, p2) {
-            let R = 6371;
-            let dLat = (p2.lat - p1.lat) * Math.PI / 180;
-            let dLng = (p2.lng - p1.lng) * Math.PI / 180;
-            let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
+        // Prompt user for location, but do NOT load bins yet.
+        promptForLocation();
+    }
 
-        function optimizeRoute(start, waypoints, firstStop) {
-            if (!firstStop) {
-                console.error("No valid first stop for the route.");
-                return;
+    function promptForLocation() {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                console.log("User granted location:", userLocation);
+            },
+            (error) => {
+                alert("Location access denied. Using a default location.");
+                userLocation = { lat: 44.66541324819608, lng: -63.62142899829352 };
+                console.log("Using default location:", userLocation);
             }
+        );
+    }
 
-            let request = {
-                origin: new google.maps.LatLng(start.lat, start.lng),
-                destination: new google.maps.LatLng(firstStop.lat, firstStop.lng),
-                waypoints: waypoints.map(wp => ({
-                    location: wp.location,
-                    stopover: true
-                })),
-                optimizeWaypoints: true,
-                travelMode: google.maps.TravelMode.DRIVING
-            };
+    function refreshCompletedBins() {
+        // Get selected route
+        let route = document.getElementById("routeSelect").value;
 
-            directionsService.route(request, function(result, status) {
-                if (status === google.maps.DirectionsStatus.OK) {
-                    directionsRenderer.setOptions({ suppressMarkers: true });
-                    directionsRenderer.setDirections(result);
-                } else {
-                    console.error("Directions request failed due to " + status);
-                }
-            });
+        // If no route is selected, do nothing
+        if (!route) {
+            // Optionally clear any existing markers or directions
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+            directionsRenderer.setDirections({ routes: [] });
+            return;
         }
-    </script>
+
+        // Now fetch bins for that route
+        let url = `/get_bins?route=${route}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                console.log("Bins:", data);
+
+                // Clear existing markers
+                markers.forEach(marker => marker.setMap(null));
+                markers = [];
+
+                // Prepare for route calculation
+                let waypoints = [];
+                let closestBin = null;
+                let minDistance = Infinity;
+
+                data.forEach(bin => {
+                    let binLocation = new google.maps.LatLng(bin.lat, bin.lng);
+
+                    // Create marker
+                    let marker = new google.maps.Marker({
+                        position: binLocation,
+                        map: map
+                    });
+
+                    // Info window content
+                    let infowindow = new google.maps.InfoWindow({
+                        content: `<b>${bin.note}</b><br>
+                                  ${bin.image ? `<img src="${bin.image}" width="100"><br>` : ""}`
+                    });
+                    marker.addListener('click', () => infowindow.open(map, marker));
+                    markers.push(marker);
+
+                    // Check distance to find the closest bin
+                    let distance = getDistance(userLocation, { lat: bin.lat, lng: bin.lng });
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestBin = bin;
+                    }
+
+                    // Add to waypoints
+                    waypoints.push({
+                        location: binLocation,
+                        stopover: true
+                    });
+                });
+
+                // If bins exist, show optimized route
+                if (data.length > 0) {
+                    optimizeRoute(userLocation, waypoints, closestBin);
+                } else {
+                    // No bins found
+                    directionsRenderer.setDirections({ routes: [] });
+                }
+            })
+            .catch(error => console.error("Error fetching bins:", error));
+    }
+
+    // Haversine formula for distance (km)
+    function getDistance(p1, p2) {
+        let R = 6371; // Earth's radius in km
+        let dLat = (p2.lat - p1.lat) * Math.PI / 180;
+        let dLng = (p2.lng - p1.lng) * Math.PI / 180;
+        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    function optimizeRoute(start, waypoints, firstStop) {
+        if (!start || !firstStop) {
+            console.error("No valid start or first stop for the route.");
+            return;
+        }
+
+        let request = {
+            origin: new google.maps.LatLng(start.lat, start.lng),
+            destination: new google.maps.LatLng(firstStop.lat, firstStop.lng),
+            waypoints: waypoints.map(wp => ({
+                location: wp.location,
+                stopover: true
+            })),
+            optimizeWaypoints: true,
+            travelMode: google.maps.TravelMode.DRIVING
+        };
+
+        directionsService.route(request, function(result, status) {
+            if (status === google.maps.DirectionsStatus.OK) {
+                // Hide default Google markers
+                directionsRenderer.setOptions({ suppressMarkers: true });
+                directionsRenderer.setDirections(result);
+            } else {
+                console.error("Directions request failed due to " + status);
+            }
+        });
+    }
+</script>
 
 </body>
 </html>
