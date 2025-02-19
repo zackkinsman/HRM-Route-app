@@ -1,238 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Garbage Bin Map (Admin)</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Include your Google Maps API key -->
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap" async defer></script>
-    <style>
-        #map {
-            height: 500px;
-            width: 100%;
-        }
-    </style>
+  <title>Garbage Bin Map (Admin)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Google Maps API with callback to the global initMap function -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
+  <style>
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+  </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <h2 class="text-center mt-3">Admin - Garbage Bin Map</h2>
-        <div class="text-end mb-3">
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
-        </div>
-
-        <!-- Map -->
-        <div id="map" class="mb-3"></div>
-
-        <!-- Select route + Filter button -->
-        <div class="row mb-3">
-            <div class="col-12 col-md-6 mx-auto">
-                <label for="routeSelect" class="form-label">Select Route:</label>
-                <select id="routeSelect" class="form-select">
-                    <option value="" disabled selected>Select a Route</option>
-                    <option value="ema_halifax">EMA Halifax</option>
-                    <option value="ema_dartmouth">EMA Dartmouth</option>
-                    <option value="halifax_1">Halifax 1</option>
-                    <option value="halifax_2">Halifax 2</option>
-                    <option value="halifax_3">Halifax 3</option>
-                    <option value="halifax_4">Halifax 4</option>
-                    <option value="dartmouth_1">Dartmouth 1</option>
-                    <option value="dartmouth_2">Dartmouth 2</option>
-                </select>
-                <button class="btn btn-primary mt-2" onclick="refreshBins()">Filter</button>
-            </div>
-        </div>
-
-        <!-- Form for adding note + image to the newly clicked marker location -->
-        <form id="binForm" class="row g-3">
-            <div class="col-md-6">
-                <label for="note" class="form-label">Note:</label>
-                <input type="text" id="note" name="note" class="form-control">
-            </div>
-            <div class="col-md-6">
-                <label for="image" class="form-label">Image:</label>
-                <input type="file" id="image" name="image" class="form-control">
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-success mt-3">Save</button>
-            </div>
-        </form>
+  <div class="container-fluid">
+    <h2 class="text-center mt-3">Admin - Garbage Bin Map</h2>
+    <div class="text-end mb-3">
+      <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script>
-        let map;
-        let selectedLat = null;
-        let selectedLng = null;
-        let markers = {};
-
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 44.66534095035757, lng: -63.62137517790954 },
-                zoom: 15
-            });
-
-            // NOTE: Removed any automatic refreshBins() call here.
-            // The user must explicitly choose a route and click "Filter" to load markers.
-
-            // On map click, user can add a marker
-            map.addListener('click', function(e) {
-                if (confirm("Do you want to add a bin at this location?")) {
-                    selectedLat = e.latLng.lat();
-                    selectedLng = e.latLng.lng();
-
-                    // Create a temporary marker to show the user where they clicked
-                    new google.maps.Marker({
-                        position: { lat: selectedLat, lng: selectedLng },
-                        map: map,
-                        animation: google.maps.Animation.DROP
-                    });
-                }
-            });
-
-            // Handle form submission (for adding bin)
-            document.getElementById("binForm").onsubmit = function(event) {
-                event.preventDefault();
-
-                let route = document.getElementById("routeSelect").value;
-                if (!route) {
-                    alert("Select a route before saving a bin.");
-                    return;
-                }
-
-                if (selectedLat === null || selectedLng === null) {
-                    alert("Click on the map to select a bin location first.");
-                    return;
-                }
-
-                let note = document.getElementById("note").value;
-                let image = document.getElementById("image").files[0];
-
-                let formData = new FormData();
-                formData.append("lat", selectedLat);
-                formData.append("lng", selectedLng);
-                formData.append("note", note);
-                formData.append("image", image);
-                formData.append("route", route);
-
-                fetch("/add_bin", { method: "POST", body: formData })
-                    .then(response => response.json())
-                    .then(data => {
-                        alert(data.message);
-                        refreshBins();
-                        // Reset selected location
-                        selectedLat = null;
-                        selectedLng = null;
-                        // Clear form fields
-                        document.getElementById("note").value = "";
-                        document.getElementById("image").value = "";
-                    });
-            };
-        }
-
-        function refreshBins() {
-            let route = document.getElementById("routeSelect").value;
-            if (!route) {
-                // Clear markers if route is unselected
-                for (let id in markers) {
-                    markers[id].setMap(null);
-                }
-                markers = {};
-                return;
-            }
-
-            // Fetch bins for the selected route
-            let url = `/get_bins?route=${route}`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Fetched bins:", data);
-
-                    // Remove old markers
-                    for (let id in markers) {
-                        markers[id].setMap(null);
-                    }
-                    markers = {};
-
-                    // Add new markers for this route
-                    data.forEach(bin => {
-                        let marker = new google.maps.Marker({
-                            position: { lat: bin.lat, lng: bin.lng },
-                            map: map
-                        });
-
-                        let infowindow = new google.maps.InfoWindow({
-                            content: `<b>${bin.note}</b><br>
-                                      <b>Route:</b> ${bin.route}<br>
-                                      ${
-                                          bin.image
-                                              ? `<img src="${bin.image}" width="100"><br>`
-                                              : ""
-                                      }
-                                      <button onclick="deleteBin(${bin.id})">Delete</button>
-                                      <button onclick="editBin(${bin.id}, '${bin.note}')">Edit</button>`
-                        });
-
-                        marker.addListener('click', function() {
-                            infowindow.open(map, marker);
-                        });
-
-                        markers[bin.id] = marker;
-                    });
-                });
-        }
-
-        function deleteBin(binId) {
-            if (!binId) return;
-            if (!confirm("Are you sure you want to delete this bin?")) return;
-
-            fetch(`/delete_bin/${binId}`, { method: "DELETE" })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    // Remove marker from map
-                    if (markers[binId]) {
-                        markers[binId].setMap(null);
-                        delete markers[binId];
-                    }
-                })
-                .catch(error => console.error("Error deleting bin:", error));
-        }
-
-        function editBin(binId, oldNote) {
-            let newNote = prompt("Enter new note:", oldNote);
-            if (newNote === null) return;
-
-            let formData = new FormData();
-            formData.append("note", newNote);
-
-            // Ask if the user wants to update the image
-            if (confirm("Do you want to update the image?")) {
-                let imageInput = document.createElement("input");
-                imageInput.type = "file";
-                imageInput.accept = "image/*";
-
-                imageInput.onchange = function() {
-                    if (imageInput.files.length > 0) {
-                        formData.append("image", imageInput.files[0]);
-                    }
-                    updateBin(binId, formData);
-                };
-                imageInput.click();
-            } else {
-                updateBin(binId, formData);
-            }
-        }
-
-        function updateBin(binId, formData) {
-            fetch(`/edit_bin/${binId}`, { method: "POST", body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    refreshBins();
-                })
-                .catch(error => console.error("Error updating bin:", error));
-        }
-    </script>
+    
+    <!-- Map Container -->
+    <div id="map" class="mb-3"></div>
+    
+    <!-- Route Selection and Filter -->
+    <div class="row mb-3">
+      <div class="col-12 col-md-6 mx-auto">
+        <label for="routeSelect" class="form-label">Select Route:</label>
+        <select id="routeSelect" class="form-select">
+          <option value="" disabled selected>Select a Route</option>
+          <option value="ema_halifax">EMA Halifax</option>
+          <option value="ema_dartmouth">EMA Dartmouth</option>
+          <option value="halifax_1">Halifax 1</option>
+          <option value="halifax_2">Halifax 2</option>
+          <option value="halifax_3">Halifax 3</option>
+          <option value="halifax_4">Halifax 4</option>
+          <option value="dartmouth_1">Dartmouth 1</option>
+          <option value="dartmouth_2">Dartmouth 2</option>
+        </select>
+        <button class="btn btn-primary mt-2" onclick="refreshAdminBins()">Filter</button>
+      </div>
+    </div>
+    
+    <!-- Form for Adding a New Bin -->
+    <form id="binForm" class="row g-3">
+      <div class="col-md-6">
+        <label for="note" class="form-label">Note:</label>
+        <input type="text" id="note" name="note" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label for="image" class="form-label">Image:</label>
+        <input type="file" id="image" name="image" class="form-control">
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-success mt-3">Save</button>
+      </div>
+    </form>
+    
+    <!-- Hidden file input for updating images in editBin -->
+    <input type="file" id="hiddenFileInput" accept="image/*" style="display: none;">
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- External JavaScript file with all map functionality -->
+  <script src="/static/scripts.js"></script>
 </body>
 </html>
